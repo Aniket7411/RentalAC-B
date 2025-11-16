@@ -43,9 +43,12 @@ exports.getAllACs = async (req, res, next) => {
       query.location = { $regex: location, $options: 'i' };
     }
 
-    // Price filters based on duration
-    if (duration && (minPrice || maxPrice)) {
-      const priceField = `price.${duration}`;
+    // Price filters based on duration (case-insensitive; accept Monthly|Quarterly|Yearly or monthly|quarterly|yearly)
+    const normalizedDuration = duration ? duration.toString().toLowerCase() : undefined;
+    const durationKey = ['monthly', 'quarterly', 'yearly'].includes(normalizedDuration) ? normalizedDuration : undefined;
+
+    if (durationKey && (minPrice || maxPrice)) {
+      const priceField = `price.${durationKey}`;
       query[priceField] = {};
       if (minPrice) {
         query[priceField].$gte = parseFloat(minPrice);
