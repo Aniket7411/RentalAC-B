@@ -25,11 +25,23 @@ const PORT = process.env.PORT || 5000;
 
 
 // Middleware
+// CORS: allow all by default, or restrict via CORS_ORIGINS/FRONTEND_URL (comma-separated)
+const parseOrigins = (value) => {
+  if (!value) return null;
+  return value.split(',').map(o => o.trim()).filter(Boolean);
+};
+const allowedOrigins = parseOrigins(process.env.CORS_ORIGINS) || parseOrigins(process.env.FRONTEND_URL);
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // server-to-server or same-origin
+    if (!allowedOrigins) return callback(null, true); // allow all if not specified
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: false,
+  maxAge: 86400
 }));
 app.options('*', cors());
 app.use(express.json());
