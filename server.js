@@ -25,10 +25,25 @@ const PORT = process.env.PORT || 5000;
 
 
 // Middleware
+// CORS: allow multiple origins from env (comma-separated). Default: allow all.
+const parseOrigins = (value) => {
+  if (!value) return null;
+  return value.split(',').map(o => o.trim()).filter(Boolean);
+};
+const allowedOrigins = parseOrigins(process.env.CORS_ORIGINS) || parseOrigins(process.env.FRONTEND_URL);
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow non-browser or same-origin
+    if (!allowedOrigins) return callback(null, true); // allow all if not specified
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false, // using Bearer tokens; set true only if using cookies
+  maxAge: 86400
 }));
+app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
