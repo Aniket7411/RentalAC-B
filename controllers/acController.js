@@ -105,8 +105,42 @@ exports.getACById = async (req, res, next) => {
       });
     }
 
-    // Return full price object per spec
-    const ac = { ...acDoc };
+    // Find related ACs (same location, brand, type, or capacity)
+    // Priority: location > brand > type > capacity
+    const relatedACsQuery = {
+      _id: { $ne: req.params.id }, // Exclude current AC
+      status: 'Available' // Only show available ACs
+    };
+
+    // Try to find ACs with same location first, then brand, type, or capacity
+    let relatedACs = await AC.find({
+      ...relatedACsQuery,
+      $or: [
+        { location: acDoc.location },
+        { brand: acDoc.brand },
+        { type: acDoc.type },
+        { capacity: acDoc.capacity }
+      ]
+    })
+      .lean()
+      .sort({ createdAt: -1 })
+      .limit(6);
+
+    // If not enough related ACs, fill with any available ACs
+    if (relatedACs.length < 6) {
+      const additionalACs = await AC.find({
+        ...relatedACsQuery,
+        _id: { $nin: relatedACs.map(ac => ac._id) }
+      })
+        .lean()
+        .sort({ createdAt: -1 })
+        .limit(6 - relatedACs.length);
+      
+      relatedACs = [...relatedACs, ...additionalACs];
+    }
+
+    // Return full price object per spec with related ACs
+    const ac = { ...acDoc, relatedACs };
 
     res.status(200).json({
       success: true,
